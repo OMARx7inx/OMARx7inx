@@ -1,93 +1,115 @@
-import discord
-from discord.ext import commands
-from discord.ext.commands import has_permissions, MissingPermissions
-import random
+d(embed=embed)
 
-# إعداد البوت مع البادئة ! لكل الأوامر
-bot = commands.Bot(command_prefix='!')
+# تشغيل const { Client, GatewayIntentBits } = require('discord.js');
+const ytdl = require('ytdl-core');
+const mongoose = require('mongoose');
 
-# حدث عند تسجيل الدخول
-@bot.event
-async def on_ready():
-    print(f'تم تسجيل الدخول كـ {bot.user}')
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers,
+  ],
+});
 
-# أمر الترحيب
-@bot.command()
-async def مرحبا(ctx):
-    """يرحب البوت بالمستخدم"""
-    await ctx.send('أهلاً وسهلاً بك في السيرفر!')
+client.on('ready', () => {
+  console.log(`تم تسجيل الدخول كـ ${client.user.tag}!`);
+});
 
-# أمر التحذير
-@bot.command()
-@has_permissions(kick_members=True)
-async def تحذير(ctx, member: discord.Member, *, reason=None):
-    """يتم تحذير العضو المذكور مع السبب"""
-    if reason is None:
-        reason = "لا يوجد سبب محدد"
-    await ctx.send(f'{member.mention} تم تحذيره بسبب: {reason}')
+// بوت المتاجر (مثال بسيط)
+const store = new Map(); // لتخزين المنتجات
+client.on('messageCreate', (message) => {
+  if (message.content.startsWith('!أضفمنتج')) {
+    const args = message.content.split(' ').slice(1);
+    const [name, price] = args;
+    store.set(name, { price });
+    message.reply(`تم إضافة المنتج: ${name} بسعر ${price}`);
+  }
+  if (message.content === '!عرضالمتجر') {
+    let storeList = 'قائمة المتجر:\n';
+    store.forEach((value, key) => {
+      storeList += `${key}: ${value.price} coin\n`;
+    });
+    message.reply(storeList);
+  }
+});
 
-# أمر ميوت (إسكاته)
-@bot.command()
-@has_permissions(mute_members=True)
-async def ميوت(ctx, member: discord.Member):
-    """صمت العضو"""
-    mute_role = discord.utils.get(ctx.guild.roles, name="Muted")  # تأكد من وجود Role باسم Mute
-    if mute_role not in member.roles:
-        await member.add_roles(mute_role)
-        await ctx.send(f'{member.mention} تم إسكاته.')
-    else:
-        await ctx.send(f'{member.mention} هو بالفعل ميوت.')
+// بوت عجلة الحظ
+client.on('messageCreate', (message) => {
+  if (message.content === '!دورعجلة') {
+    const prizes = ['100 coins', 'لا جائزة', 'عنصر إضافي', '500 coins'];
+    const randomPrize = prizes[Math.floor(Math.random() * prizes.length)];
+    message.reply(`لقد حصلت على: ${randomPrize}`);
+  }
+});
 
-# أمر تكلم (إلغاء الميوت)
-@bot.command()
-@has_permissions(mute_members=True)
-async def تكلم(ctx, member: discord.Member):
-    """إلغاء الميوت عن العضو"""
-    mute_role = discord.utils.get(ctx.guild.roles, name="Muted")  # تأكد من وجود Role باسم Mute
-    if mute_role in member.roles:
-        await member.remove_roles(mute_role)
-        await ctx.send(f'{member.mention} تم فك الميوت عنه.')
-    else:
-        await ctx.send(f'{member.mention} ليس ميوتًا.')
+// بوت الأغاني
+const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus } = require('@discordjs/voice');
 
-# أمر فك (إزالة أي دور أو عقوبة)
-@bot.command()
-@has_permissions(administrator=True)
-async def فك(ctx, member: discord.Member):
-    """إلغاء أي عقوبة أو إجراء من العضو"""
-    await ctx.send(f'{member.mention} تم فك جميع الإجراءات عنه.')
+client.on('messageCreate', async (message) => {
+  if (message.content.startsWith('!شغل')) {
+    const args = message.content.split(' ').slice(1);
+    const url = args.join(' ');
+    if (!ytdl.validateURL(url)) return message.reply('رابط غير صالح!');
 
-# أمر طرد
-@bot.command()
-@has_permissions(kick_members=True)
-async def طرد(ctx, member: discord.Member, *, reason=None):
-    """طرد العضو من السيرفر"""
-    if reason is None:
-        reason = "لا يوجد سبب محدد"
-    await member.kick(reason=reason)
-    await ctx.send(f'{member.mention} تم طرده بسبب: {reason}')
+    const connection = joinVoiceChannel({
+      channelId: message.member.voice.channelId,
+      guildId: message.guild.id,
+      adapterCreator: message.guild.voiceAdapterCreator,
+    });
 
-# أمر لف مالديف (كوميدي أو ترفيهي)
-@bot.command()
-async def لف_مالديف(ctx):
-    """أمر كوميدي لفكاهة"""
-    phrases = [
-        "أنت لفيت مالديف ولا راجع؟",
-        "اتمنى تكون استمتعت بلف مالديف!",
-        "هل كنت تستمتع في مالديف؟ الآن عد إلى العمل!"
-    ]
-    await ctx.send(random.choice(phrases))
+    const stream = ytdl(url, { filter: 'audioonly' });
+    const resource = createAudioResource(stream);
+    const player = createAudioPlayer();
+    connection.subscribe(player);
+    player.play(resource);
 
-# أمر إحصائيات
-@bot.command()
-async def إحصائيات(ctx):
-    """يعرض إحصائيات السيرفر"""
-    guild = ctx.guild
-    embed = discord.Embed(title="إحصائيات السيرفر", color=0x00ff00)
-    embed.add_field(name="عدد الأعضاء", value=len(guild.members), inline=True)
-    embed.add_field(name="عدد القنوات", value=len(guild.channels), inline=True)
-    embed.add_field(name="عدد الأقسام", value=len(guild.categories), inline=True)
-    await ctx.send(embed=embed)
+    player.on(AudioPlayerStatus.Idle, () => connection.destroy());
+    message.reply('تم تشغيل الأغنية!');
+  }
+});
 
-# تشغيل البوت
-bot.run('MTMxODY4ODQwMTAzMzEzNDEyMA.GkraDH.fw0hxUHRnWfW08e_iE0w5jSweWdmX8E5zI-txY')
+// أمر التحذير
+client.on('messageCreate', (message) => {
+  if (message.content.startsWith('!تحذير')) {
+    if (!message.member.permissions.has('MANAGE_MESSAGES')) {
+      return message.reply('ليس لديك صلاحية لإعطاء تحذيرات.');
+    }
+    const args = message.content.split(' ').slice(1);
+    const member = message.mentions.members.first();
+    if (!member) return message.reply('من فضلك أذكر العضو الذي تريد تحذيره.');
+    const reason = args.slice(1).join(' ') || 'لا يوجد سبب محدد';
+    message.reply(`${member.user.tag} تم تحذيره بسبب: ${reason}`);
+  }
+});
+
+// أمر الميوت
+client.on('messageCreate', (message) => {
+  if (message.content.startsWith('!ميوت')) {
+    if (!message.member.permissions.has('MUTE_MEMBERS')) {
+      return message.reply('ليس لديك صلاحية للميوت.');
+    }
+    const args = message.content.split(' ').slice(1);
+    const member = message.mentions.members.first();
+    if (!member) return message.reply('من فضلك أذكر العضو الذي تريد ميوت له.');
+    member.voice.setMute(true);
+    message.reply(`${member.user.tag} تم ميوت له.`);
+  }
+});
+
+// أمر السحب
+client.on('messageCreate', (message) => {
+  if (message.content.startsWith('!سحب')) {
+    if (!message.member.permissions.has('KICK_MEMBERS')) {
+      return message.reply('ليس لديك صلاحية للسحب.');
+    }
+    const args = message.content.split(' ').slice(1);
+    const member = message.mentions.members.first();
+    if (!member) return message.reply('من فضلك أذكر العضو الذي تريد سحبه.');
+    member.kick();
+    message.reply(`${member.user.tag} تم سحبه من الخادم.`);
+  }
+});
+
+client.login('MTMxODY4ODQwMTAzMzEzNDEyMA.GkraDH.fw0hxUHRnWfW08e_iE0w5jSweWdmX8E5zI-txY');
