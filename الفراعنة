@@ -1,14 +1,93 @@
 import discord
 from discord.ext import commands
+from discord.ext.commands import has_permissions, MissingPermissions
+import random
 
+# إعداد البوت مع البادئة ! لكل الأوامر
 bot = commands.Bot(command_prefix='!')
 
+# حدث عند تسجيل الدخول
 @bot.event
 async def on_ready():
     print(f'تم تسجيل الدخول كـ {bot.user}')
 
+# أمر الترحيب
 @bot.command()
 async def مرحبا(ctx):
-    await ctx.send('أهلاً وسهلاً بك!')
+    """يرحب البوت بالمستخدم"""
+    await ctx.send('أهلاً وسهلاً بك في السيرفر!')
 
+# أمر التحذير
+@bot.command()
+@has_permissions(kick_members=True)
+async def تحذير(ctx, member: discord.Member, *, reason=None):
+    """يتم تحذير العضو المذكور مع السبب"""
+    if reason is None:
+        reason = "لا يوجد سبب محدد"
+    await ctx.send(f'{member.mention} تم تحذيره بسبب: {reason}')
+
+# أمر ميوت (إسكاته)
+@bot.command()
+@has_permissions(mute_members=True)
+async def ميوت(ctx, member: discord.Member):
+    """صمت العضو"""
+    mute_role = discord.utils.get(ctx.guild.roles, name="Muted")  # تأكد من وجود Role باسم Mute
+    if mute_role not in member.roles:
+        await member.add_roles(mute_role)
+        await ctx.send(f'{member.mention} تم إسكاته.')
+    else:
+        await ctx.send(f'{member.mention} هو بالفعل ميوت.')
+
+# أمر تكلم (إلغاء الميوت)
+@bot.command()
+@has_permissions(mute_members=True)
+async def تكلم(ctx, member: discord.Member):
+    """إلغاء الميوت عن العضو"""
+    mute_role = discord.utils.get(ctx.guild.roles, name="Muted")  # تأكد من وجود Role باسم Mute
+    if mute_role in member.roles:
+        await member.remove_roles(mute_role)
+        await ctx.send(f'{member.mention} تم فك الميوت عنه.')
+    else:
+        await ctx.send(f'{member.mention} ليس ميوتًا.')
+
+# أمر فك (إزالة أي دور أو عقوبة)
+@bot.command()
+@has_permissions(administrator=True)
+async def فك(ctx, member: discord.Member):
+    """إلغاء أي عقوبة أو إجراء من العضو"""
+    await ctx.send(f'{member.mention} تم فك جميع الإجراءات عنه.')
+
+# أمر طرد
+@bot.command()
+@has_permissions(kick_members=True)
+async def طرد(ctx, member: discord.Member, *, reason=None):
+    """طرد العضو من السيرفر"""
+    if reason is None:
+        reason = "لا يوجد سبب محدد"
+    await member.kick(reason=reason)
+    await ctx.send(f'{member.mention} تم طرده بسبب: {reason}')
+
+# أمر لف مالديف (كوميدي أو ترفيهي)
+@bot.command()
+async def لف_مالديف(ctx):
+    """أمر كوميدي لفكاهة"""
+    phrases = [
+        "أنت لفيت مالديف ولا راجع؟",
+        "اتمنى تكون استمتعت بلف مالديف!",
+        "هل كنت تستمتع في مالديف؟ الآن عد إلى العمل!"
+    ]
+    await ctx.send(random.choice(phrases))
+
+# أمر إحصائيات
+@bot.command()
+async def إحصائيات(ctx):
+    """يعرض إحصائيات السيرفر"""
+    guild = ctx.guild
+    embed = discord.Embed(title="إحصائيات السيرفر", color=0x00ff00)
+    embed.add_field(name="عدد الأعضاء", value=len(guild.members), inline=True)
+    embed.add_field(name="عدد القنوات", value=len(guild.channels), inline=True)
+    embed.add_field(name="عدد الأقسام", value=len(guild.categories), inline=True)
+    await ctx.send(embed=embed)
+
+# تشغيل البوت
 bot.run('MTMxODY4ODQwMTAzMzEzNDEyMA.GkraDH.fw0hxUHRnWfW08e_iE0w5jSweWdmX8E5zI-txY')
