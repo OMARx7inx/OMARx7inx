@@ -1,115 +1,117 @@
-d(embed=embed)
+import discord
+from discord.ext import commands
+import random
+import yt_dlp
 
-# تشغيل const { Client, GatewayIntentBits } = require('discord.js');
-const ytdl = require('ytdl-core');
-const mongoose = require('mongoose');
+# إعداد البوت
+intents = discord.Intents.default()
+bot = commands.Bot(command_prefix="!", intents=intents)
 
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMembers,
-  ],
-});
+# توكن البوت
+TOKEN = "ضع التوكن هنا"
 
-client.on('ready', () => {
-  console.log(`تم تسجيل الدخول كـ ${client.user.tag}!`);
-});
+# متغير لتفعيل عجلة الحظ
+fortune_wheel_active = False
 
-// بوت المتاجر (مثال بسيط)
-const store = new Map(); // لتخزين المنتجات
-client.on('messageCreate', (message) => {
-  if (message.content.startsWith('!أضفمنتج')) {
-    const args = message.content.split(' ').slice(1);
-    const [name, price] = args;
-    store.set(name, { price });
-    message.reply(`تم إضافة المنتج: ${name} بسعر ${price}`);
-  }
-  if (message.content === '!عرضالمتجر') {
-    let storeList = 'قائمة المتجر:\n';
-    store.forEach((value, key) => {
-      storeList += `${key}: ${value.price} coin\n`;
-    });
-    message.reply(storeList);
-  }
-});
+# متغير لتخزين الحالة الموسيقية
+voice_client = None
 
-// بوت عجلة الحظ
-client.on('messageCreate', (message) => {
-  if (message.content === '!دورعجلة') {
-    const prizes = ['100 coins', 'لا جائزة', 'عنصر إضافي', '500 coins'];
-    const randomPrize = prizes[Math.floor(Math.random() * prizes.length)];
-    message.reply(`لقد حصلت على: ${randomPrize}`);
-  }
-});
+# عجلة الحظ
+@bot.command()
+async def activate(ctx):
+    global fortune_wheel_active
+    fortune_wheel_active = True
+    await ctx.send("🎡 The Fortune Wheel is now active! Type !spin to try your luck!")
 
-// بوت الأغاني
-const { joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus } = require('@discordjs/voice');
+@bot.command()
+async def deactivate(ctx):
+    global fortune_wheel_active
+    fortune_wheel_active = False
+    await ctx.send("🎡 The Fortune Wheel is now deactivated. Type !activate to activate it again.")
 
-client.on('messageCreate', async (message) => {
-  if (message.content.startsWith('!شغل')) {
-    const args = message.content.split(' ').slice(1);
-    const url = args.join(' ');
-    if (!ytdl.validateURL(url)) return message.reply('رابط غير صالح!');
+@bot.command()
+async def spin(ctx):
+    if not fortune_wheel_active:
+        await ctx.send("🎡 The Fortune Wheel is not active. Type !activate to activate it.")
+        return
 
-    const connection = joinVoiceChannel({
-      channelId: message.member.voice.channelId,
-      guildId: message.guild.id,
-      adapterCreator: message.guild.voiceAdapterCreator,
-    });
-
-    const stream = ytdl(url, { filter: 'audioonly' });
-    const resource = createAudioResource(stream);
-    const player = createAudioPlayer();
-    connection.subscribe(player);
-    player.play(resource);
-
-    player.on(AudioPlayerStatus.Idle, () => connection.destroy());
-    message.reply('تم تشغيل الأغنية!');
-  }
-});
-
-// أمر التحذير
-client.on('messageCreate', (message) => {
-  if (message.content.startsWith('!تحذير')) {
-    if (!message.member.permissions.has('MANAGE_MESSAGES')) {
-      return message.reply('ليس لديك صلاحية لإعطاء تحذيرات.');
+    prizes = {
+        "5000": 90,
+        "100000": 5,
+        "1000000": 2,
+        "5000000": 1,
+        "1000000000": 0
     }
-    const args = message.content.split(' ').slice(1);
-    const member = message.mentions.members.first();
-    if (!member) return message.reply('من فضلك أذكر العضو الذي تريد تحذيره.');
-    const reason = args.slice(1).join(' ') || 'لا يوجد سبب محدد';
-    message.reply(`${member.user.tag} تم تحذيره بسبب: ${reason}`);
-  }
-});
+    result = random.choices(list(prizes.keys()), weights=prizes.values(), k=1)[0]
+    await ctx.send(f"🎡 You won: {result}!")
 
-// أمر الميوت
-client.on('messageCreate', (message) => {
-  if (message.content.startsWith('!ميوت')) {
-    if (!message.member.permissions.has('MUTE_MEMBERS')) {
-      return message.reply('ليس لديك صلاحية للميوت.');
+# موسيقى
+@bot.command()
+async def join(ctx):
+    if ctx.author.voice:
+        channel = ctx.author.voice.channel
+        voice_client = await channel.connect()
+        await ctx.send(f"🎶 Connected to {channel.name}!")
+    else:
+        await ctx.send("You need to join a voice channel first!")
+
+@bot.command()
+async def play(ctx, url):
+    if voice_client is None:
+        await ctx.send("The bot is not connected to a voice channel!")
+        return
+
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'postprocessors': [{
+            'key': 'FFmpegAudioConvertor',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }],
     }
-    const args = message.content.split(' ').slice(1);
-    const member = message.mentions.members.first();
-    if (!member) return message.reply('من فضلك أذكر العضو الذي تريد ميوت له.');
-    member.voice.setMute(true);
-    message.reply(`${member.user.tag} تم ميوت له.`);
-  }
-});
+    
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=False)
+        url2 = info['formats'][0]['url']
+        voice_client.play(discord.FFmpegPCMAudio(url2))
 
-// أمر السحب
-client.on('messageCreate', (message) => {
-  if (message.content.startsWith('!سحب')) {
-    if (!message.member.permissions.has('KICK_MEMBERS')) {
-      return message.reply('ليس لديك صلاحية للسحب.');
-    }
-    const args = message.content.split(' ').slice(1);
-    const member = message.mentions.members.first();
-    if (!member) return message.reply('من فضلك أذكر العضو الذي تريد سحبه.');
-    member.kick();
-    message.reply(`${member.user.tag} تم سحبه من الخادم.`);
-  }
-});
+    await ctx.send(f"🎶 Now playing: {info['title']}")
 
-client.login('MTMxODY4ODQwMTAzMzEzNDEyMA.GkraDH.fw0hxUHRnWfW08e_iE0w5jSweWdmX8E5zI-txY');
+@bot.command()
+async def stop(ctx):
+    if voice_client.is_playing():
+        voice_client.stop()
+        await ctx.send("🎶 Stopped the music.")
+    else:
+        await ctx.send("No music is currently playing.")
+
+# أوامر إدارية (مثل برو بوت)
+@bot.command()
+@commands.has_permissions(ban_members=True)
+async def ban(ctx, member: discord.Member, *, reason=None):
+    await member.ban(reason=reason)
+    await ctx.send(f"🚫 Banned {member.mention} for {reason}")
+
+@bot.command()
+@commands.has_permissions(kick_members=True)
+async def kick(ctx, member: discord.Member, *, reason=None):
+    await member.kick(reason=reason)
+    await ctx.send(f"🚪 Kicked {member.mention} for {reason}")
+
+@bot.command()
+async def mute(ctx, member: discord.Member):
+    role = discord.utils.get(ctx.guild.roles, name="Muted")
+    if not role:
+        role = await ctx.guild.create_role(name="Muted")
+        for channel in ctx.guild.channels:
+            await channel.set_permissions(role, speak=False, send_messages=False)
+    await member.add_roles(role)
+    await ctx.send(f"🔇 Muted {member.mention}")
+
+# أحداث البوت
+@bot.event
+async def on_ready():
+    print(f"Bot is ready! Logged in as {bot.user}")
+
+# تشغيل البوت
+bot.run(MTMxODY4ODQwMTAzMzEzNDEyMA.GkraDH.fw0hxUHRnWfW08e_iE0w5jSweWdmX8E5zI-txY)
